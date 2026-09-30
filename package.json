@@ -1,0 +1,30 @@
+{
+  "name": "idx-exchange-agentic-ai-elsa-philip",
+  "version": "1.0.0",
+  "description": "This repository contains my Agentic AI internship project for IDX Exchange.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elsaphilip2026/IDX-Exchange-Agentic-AI-Elsa-Philip.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/elsaphilip2026/IDX-Exchange-Agentic-AI-Elsa-Philip/issues"
+  },
+  "homepage": "https://github.com/elsaphilip2026/IDX-Exchange-Agentic-AI-Elsa-Philip#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

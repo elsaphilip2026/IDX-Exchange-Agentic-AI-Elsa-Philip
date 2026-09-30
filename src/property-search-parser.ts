@@ -57,10 +57,10 @@ export function parsePropertySearch(query: string): PropertyFilters {
 
   // Property type
   const propertyTypes = [
-    "house",
-    "condo",
     "townhouse",
-    "apartment"
+    "condo",
+    "apartment",
+    "house"
   ];
 
   for (const type of propertyTypes) {
