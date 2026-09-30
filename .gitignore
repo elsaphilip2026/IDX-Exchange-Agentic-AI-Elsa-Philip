@@ -1,0 +1,38 @@
+# Environment variables and secrets
+.env
+.env.*
+*.key
+*.pem
+
+# MLS / database files
+*.sql
+*.csv
+*.db
+*.sqlite
+*.sqlite3
+
+# Credentials
+credentials*
+secrets*
+config.local.*
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
