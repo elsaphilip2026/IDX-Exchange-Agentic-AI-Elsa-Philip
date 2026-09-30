@@ -7,11 +7,22 @@ export interface PropertyFilters {
   minSqft?: number;
   maxSqft?: number;
   propertyType?: string;
+  pool?: string;
+  hasView?: string;
 }
 
 export function parsePropertySearch(query: string): PropertyFilters {
   const filters: PropertyFilters = {};
   const text = query.toLowerCase();
+
+  // City
+  const cityMatch = query.match(
+    /\bin\s+([A-Za-z\s]+?)(?=\s+(?:under|below|over|above|with|at|for|having)\b|$)/i
+  );
+
+  if (cityMatch) {
+    filters.city = cityMatch[1].trim();
+  }
 
   // Bedrooms
   const bedroomMatch = text.match(
@@ -55,19 +66,49 @@ export function parsePropertySearch(query: string): PropertyFilters {
     );
   }
 
-  // Property type
-  const propertyTypes = [
-    "townhouse",
-    "condo",
-    "apartment",
-    "house"
-  ];
+  // Minimum square footage
+  const minSqftMatch = text.match(
+    /(?:at least|min(?:imum)?(?: of)?|over|above)\s*([\d,]+)\s*(?:sqft|sq ft|square feet)/
+  );
 
-  for (const type of propertyTypes) {
-    if (text.includes(type)) {
-      filters.propertyType = type;
+  if (minSqftMatch) {
+    filters.minSqft = Number(minSqftMatch[1].replace(/,/g, ""));
+  } else {
+    const sqftMatch = text.match(
+      /([\d,]+)\s*(?:sqft|sq ft|square feet)/
+    );
+
+    if (sqftMatch) {
+      filters.minSqft = Number(sqftMatch[1].replace(/,/g, ""));
+    }
+  }
+
+  // Property type mapped to MLS values
+  const propertyTypeMap: Record<string, string> = {
+    townhouse: "Townhouse",
+    townhome: "Townhouse",
+    condo: "Condominium",
+    condominium: "Condominium",
+    "single family": "SingleFamilyResidence",
+    house: "SingleFamilyResidence",
+    land: "UnimprovedLand"
+  };
+
+  for (const [term, mlsValue] of Object.entries(propertyTypeMap)) {
+    if (text.includes(term)) {
+      filters.propertyType = mlsValue;
       break;
     }
+  }
+
+  // Pool
+  if (/\bpool\b/i.test(query)) {
+    filters.pool = "True";
+  }
+
+  // View
+  if (/\bview\b/i.test(query)) {
+    filters.hasView = "True";
   }
 
   return filters;
