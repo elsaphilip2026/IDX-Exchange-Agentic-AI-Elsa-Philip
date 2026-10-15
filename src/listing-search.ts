@@ -79,7 +79,12 @@ export async function searchActiveListings(
     sql += " AND L_Type_ = ?";
     params.push(filters.propertyType);
   }
-
+  
+  if (filters.maxHoa) {
+  sql += " AND AssociationFee <= ?";
+  params.push(filters.maxHoa);
+  
+  }
   if (filters.pool) {
     sql += " AND PoolPrivateYN = ?";
     params.push("1");
