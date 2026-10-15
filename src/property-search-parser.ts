@@ -9,13 +9,16 @@ export interface PropertyFilters {
   propertyType?: string;
   pool?: string;
   hasView?: string;
+  maxHoa?: number;
 }
 
 export function parsePropertySearch(query: string): PropertyFilters {
   const filters: PropertyFilters = {};
   const text = query.toLowerCase();
 
+  // --------------------------------------------------
   // City
+  // --------------------------------------------------
   const cityMatch = query.match(
     /\bin\s+([A-Za-z\s]+?)(?=\s+(?:under|below|over|above|with|at|for|having)\b|$)/i
   );
@@ -24,27 +27,63 @@ export function parsePropertySearch(query: string): PropertyFilters {
     filters.city = cityMatch[1].trim();
   }
 
+  // --------------------------------------------------
   // Bedrooms
+  // Supports:
+  // 3 bedroom
+  // 3-bedroom
+  // 3 beds
+  // 3 br
+  // --------------------------------------------------
   const bedroomMatch = text.match(
-    /(\d+)\s*(?:bedrooms?|beds?|br)\b/
+    /(\d+)[\s-]*(?:bedrooms?|beds?|br)\b/
   );
 
   if (bedroomMatch) {
     filters.bedrooms = Number(bedroomMatch[1]);
   }
 
+  // --------------------------------------------------
   // Bathrooms
+  // --------------------------------------------------
   const bathroomMatch = text.match(
-    /(\d+(?:\.\d+)?)\s*(?:bathrooms?|baths?|ba)\b/
+    /(\d+(?:\.\d+)?)[\s-]*(?:bathrooms?|baths?|ba)\b/
   );
 
   if (bathroomMatch) {
     filters.bathrooms = Number(bathroomMatch[1]);
   }
 
-  // Maximum price
-  const maxPriceMatch = text.match(
-    /(?:under|below|less than|max(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?/
+  // --------------------------------------------------
+  // HOA
+  // Examples:
+  // HOA under $500
+  // HOA below 500
+  // association fee under $400
+  // max HOA $600
+  // --------------------------------------------------
+  const hoaMatch = text.match(
+    /\b(?:hoa|association fee)\s*(?:(?:under|below|max(?:imum)?(?: of)?)\s*)?\$?([\d,.]+)\b/i
+  );
+
+  if (hoaMatch) {
+    filters.maxHoa = Number(
+      hoaMatch[1].replace(/,/g, "")
+    );
+  }
+
+  // Remove HOA expression before parsing property price.
+  // This prevents "HOA under $500" from becoming maxPrice.
+  const textWithoutHoa = text.replace(
+    /\b(?:hoa|association fee)\s*(?:(?:under|below|max(?:imum)?(?: of)?)\s*)?\$?[\d,.]+\b/gi,
+    ""
+  );
+
+  // --------------------------------------------------
+  // Maximum property price
+  // --------------------------------------------------
+  const maxPriceMatch = textWithoutHoa.match(
+    /\b(?:under|below|less than|max(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?\b/i
   );
 
   if (maxPriceMatch) {
@@ -54,9 +93,11 @@ export function parsePropertySearch(query: string): PropertyFilters {
     );
   }
 
-  // Minimum price
-  const minPriceMatch = text.match(
-    /(?:over|above|more than|min(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?/
+  // --------------------------------------------------
+  // Minimum property price
+  // --------------------------------------------------
+  const minPriceMatch = textWithoutHoa.match(
+    /\b(?:over|above|more than|min(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?\b/i
   );
 
   if (minPriceMatch) {
@@ -66,24 +107,32 @@ export function parsePropertySearch(query: string): PropertyFilters {
     );
   }
 
+  // --------------------------------------------------
   // Minimum square footage
+  // --------------------------------------------------
   const minSqftMatch = text.match(
-    /(?:at least|min(?:imum)?(?: of)?|over|above)\s*([\d,]+)\s*(?:sqft|sq ft|square feet)/
+    /(?:at least|min(?:imum)?(?: of)?|over|above)\s*([\d,]+)\s*(?:sqft|sq ft|square feet)\b/i
   );
 
   if (minSqftMatch) {
-    filters.minSqft = Number(minSqftMatch[1].replace(/,/g, ""));
+    filters.minSqft = Number(
+      minSqftMatch[1].replace(/,/g, "")
+    );
   } else {
     const sqftMatch = text.match(
-      /([\d,]+)\s*(?:sqft|sq ft|square feet)/
+      /([\d,]+)\s*(?:sqft|sq ft|square feet)\b/i
     );
 
     if (sqftMatch) {
-      filters.minSqft = Number(sqftMatch[1].replace(/,/g, ""));
+      filters.minSqft = Number(
+        sqftMatch[1].replace(/,/g, "")
+      );
     }
   }
 
-  // Property type mapped to MLS values
+  // --------------------------------------------------
+  // Property type
+  // --------------------------------------------------
   const propertyTypeMap: Record<string, string> = {
     townhouse: "Townhouse",
     townhome: "Townhouse",
@@ -101,12 +150,16 @@ export function parsePropertySearch(query: string): PropertyFilters {
     }
   }
 
+  // --------------------------------------------------
   // Pool
+  // --------------------------------------------------
   if (/\bpool\b/i.test(query)) {
     filters.pool = "True";
   }
 
+  // --------------------------------------------------
   // View
+  // --------------------------------------------------
   if (/\bview\b/i.test(query)) {
     filters.hasView = "True";
   }
@@ -114,12 +167,24 @@ export function parsePropertySearch(query: string): PropertyFilters {
   return filters;
 }
 
-function convertNumber(value: string, suffix?: string): number {
-  let number = Number(value.replace(/,/g, ""));
+// --------------------------------------------------
+// Convert:
+// 800k  -> 800000
+// 1.5m  -> 1500000
+// --------------------------------------------------
+function convertNumber(
+  value: string,
+  suffix?: string
+): number {
+  let number = Number(
+    value.replace(/,/g, "")
+  );
 
-  if (suffix === "k") {
+  if (suffix?.toLowerCase() === "k") {
     number *= 1_000;
-  } else if (suffix === "m") {
+  }
+
+  if (suffix?.toLowerCase() === "m") {
     number *= 1_000_000;
   }
 

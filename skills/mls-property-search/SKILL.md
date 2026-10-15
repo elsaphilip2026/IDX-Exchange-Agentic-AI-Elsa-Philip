@@ -22,6 +22,7 @@ description: "Search active MLS listings and sold comparable properties using st
    - propertyType
    - pool
    - hasView
+   - maxHoa
 
 3. For active property searches, use:
    `../../src/listing-search.ts`
