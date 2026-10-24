@@ -37,7 +37,25 @@ The project uses OpenClaw to build an AI-powered real estate assistant that can 
 - Structured property filters
 - MLS field mapping
 - Test queries
+### Week 3 – MLS Database Integration
+- MySQL connection using `mysql2/promise`
+- Parameterized MLS queries
+- Active listing search using `rets_property`
+- Sold comparable search using `california_sold`
+- Pagination and property result formatting
+- OpenClaw MLS property search skill
+- [View Week 3 Documentation](docs/week3-mls-database-integration.md)
 
+### Week 4 – Conversational Property Search & Session Memory
+- Multi-turn conversational property search
+- User session memory
+- Search criteria retained across follow-up messages
+- Price, bedroom, pool, and other filter refinements
+- Session reset support
+- Conversational search connected to the real MLS database
+- Interactive terminal chatbot
+- Express chat API foundation
+- [View Week 4 Documentation](docs/week4-conversational-search.md)
 ## Data
 
 The project uses MLS real estate datasets stored locally in MySQL.
