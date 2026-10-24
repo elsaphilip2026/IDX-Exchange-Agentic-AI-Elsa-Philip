@@ -104,6 +104,14 @@ const testCases: TestCase[] = [
       pool: "True",
       maxHoa: 500
     }
+  },
+      {
+    query: "Find me a 3 bedroom house under $5 million",
+    expected: {
+      bedrooms: 3,
+      maxPrice: 5000000,
+      propertyType: "SingleFamilyResidence"
+    }
   }
 ];
 

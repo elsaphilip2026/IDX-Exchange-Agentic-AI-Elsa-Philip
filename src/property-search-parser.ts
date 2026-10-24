@@ -83,7 +83,7 @@ export function parsePropertySearch(query: string): PropertyFilters {
   // Maximum property price
   // --------------------------------------------------
   const maxPriceMatch = textWithoutHoa.match(
-    /\b(?:under|below|less than|max(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?\b/i
+  /\b(?:under|below|less than|max(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*(k|m|thousand|million)?\b/i
   );
 
   if (maxPriceMatch) {
@@ -97,8 +97,8 @@ export function parsePropertySearch(query: string): PropertyFilters {
   // Minimum property price
   // --------------------------------------------------
   const minPriceMatch = textWithoutHoa.match(
-    /\b(?:over|above|more than|min(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*([km])?\b/i
-  );
+  /\b(?:over|above|more than|min(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*(k|m|thousand|million)?\b/i
+);
 
   if (minPriceMatch) {
     filters.minPrice = convertNumber(
@@ -180,11 +180,13 @@ function convertNumber(
     value.replace(/,/g, "")
   );
 
-  if (suffix?.toLowerCase() === "k") {
+  const normalizedSuffix = suffix?.toLowerCase();
+
+  if (normalizedSuffix === "k" || normalizedSuffix === "thousand") {
     number *= 1_000;
   }
 
-  if (suffix?.toLowerCase() === "m") {
+  if (normalizedSuffix === "m" || normalizedSuffix === "million") {
     number *= 1_000_000;
   }
 
