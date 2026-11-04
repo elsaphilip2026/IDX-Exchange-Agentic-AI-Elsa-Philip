@@ -1,4 +1,3 @@
-
 import {
   parsePropertySearch,
   PropertyFilters,
@@ -16,6 +15,12 @@ import {
   ListingRow,
 } from "./listing-search";
 
+export interface ConversationalSearchResult {
+  session: UserSession;
+  listings: ListingRow[];
+  needsCity: boolean;
+}
+
 export function handleSearchMessage(
   userId: string,
   message: string
@@ -28,9 +33,16 @@ export function handleSearchMessage(
 
   const currentSession = getSession(userId);
 
-  // Parse the new message normally
-  const newFilters: PropertyFilters =
-    parsePropertySearch(message);
+  // "Show me more" keeps the same filters and moves to the next page
+  if (/\b(?:show me more|show more|more results|next page|more properties)\b/i.test(message)) {
+    return updateSession(userId, {
+      page: currentSession.page + 1,
+      conversationStep: currentSession.conversationStep + 1,
+    });
+  }
+
+  // Parse new search criteria normally
+  const newFilters: PropertyFilters = parsePropertySearch(message);
 
   /*
    * If we are still waiting for a city and the user replies
@@ -46,13 +58,13 @@ export function handleSearchMessage(
     newFilters.city = message.trim();
   }
 
-  // Merge new criteria with everything already remembered
+  // New/refined criteria should start again from page 1
   return updateSession(userId, {
     ...newFilters,
+    page: 1,
     conversationStep: currentSession.conversationStep + 1,
   });
 }
-
 
 export async function searchFromConversation(
   userId: string,
@@ -60,7 +72,7 @@ export async function searchFromConversation(
 ): Promise<ConversationalSearchResult> {
   const session = handleSearchMessage(userId, message);
 
-  // Never query MLS until a city is available.
+  // Never query MLS until a city is available
   if (!session.city) {
     return {
       session,
@@ -69,7 +81,12 @@ export async function searchFromConversation(
     };
   }
 
-  const listings = await searchActiveListings(session, 1, 5);
+  // Return 5 properties at a time using the remembered page
+  const listings = await searchActiveListings(
+    session,
+    session.page,
+    5
+  );
 
   updateSession(userId, {
     lastResults: listings,

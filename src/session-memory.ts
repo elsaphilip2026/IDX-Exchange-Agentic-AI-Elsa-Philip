@@ -3,6 +3,7 @@ import type { PropertyFilters } from "./property-search-parser";
 export interface UserSession extends PropertyFilters {
   lastResults?: any[];
   conversationStep: number;
+  page: number;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -11,6 +12,7 @@ export function getSession(userId: string): UserSession {
   if (!sessions.has(userId)) {
     sessions.set(userId, {
       conversationStep: 0,
+      page: 1,
     });
   }
 
