@@ -77,11 +77,18 @@ description: "Search active MLS listings and sold comparable properties using st
    - Use the requested month range when provided.
    - Default to 12 months when no range is provided.
 
-6. Format database results using:
-   `../../src/property-formatter.ts`
+6. Format property search results according to the channel.
 
-   Return readable property cards instead of raw database rows.
+   For WhatsApp active-listing searches:
+   - Use http://localhost:3000/api/chat.
+   - Send ONLY the API response's "reply" text.
+   - Do not append or regenerate property cards from "properties".
+   - Do not call property-formatter.ts for the same response.
+   - Preserve sessionId across follow-up messages.
 
+   For direct MLS queries and sold comparable searches:
+   - Use ../../src/property-formatter.ts.
+   - Return readable property cards instead of raw database rows.
 7. Do not invent property information.
 
    Only return property information obtained from the MLS database.

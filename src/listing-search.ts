@@ -11,6 +11,7 @@ export interface ListingRow {
   beds: number;
   baths: number;
   sqft: number;
+  PhotoCount: number | null;
   type: string;
   status: string;
   PoolPrivateYN: string;
@@ -35,6 +36,7 @@ export async function searchActiveListings(
       L_Keyword2 AS beds,
       LM_Dec_3 AS baths,
       LM_Int2_3 AS sqft,
+      PhotoCount,
       L_Type_ AS type,
       L_Status AS status,
       PoolPrivateYN,

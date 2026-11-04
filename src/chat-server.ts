@@ -78,10 +78,23 @@ app.post("/api/chat", async (req, res) => {
       bedrooms: listing.beds,
       bathrooms: listing.baths,
       sqft: listing.sqft,
+      photoCount: listing.PhotoCount,
     }));
 
     const reply = properties.length
-      ? `I found ${properties.length} matching active properties.`
+  ? [
+      `I found ${properties.length} matching active properties.`,
+      ...properties.map((property) =>
+        [
+          `🏠 ${property.address}, ${property.city}`,
+          `$${Number(property.price).toLocaleString("en-US")}`,
+          `${property.bedrooms} beds | ${property.bathrooms} baths | ${property.sqft} sqft`,
+          `📸 Photos: ${property.photoCount ?? "Unavailable"}`,
+        ].join("\n")
+      ),
+    ].join("\n\n")
+  : session.page > 1
+      ? "You've reached the end of the results. There are no more matching properties. Would you like to adjust your filters?"
       : "I couldn't find matching properties. Try adjusting your criteria.";
 
     return res.json({
@@ -89,13 +102,13 @@ app.post("/api/chat", async (req, res) => {
       reply,
       filters: session,
       count: properties.length,
-      properties,
+      // properties, // Temporarily disabled to test WhatsApp duplication
     });
   } catch (error) {
     console.error("IDX Exchange AI error:", error);
     return res.status(500).json({
-      error: "I couldn't complete the property search. Please try again.",
-    });
+  error: "I couldn't complete the property search. Please try again.",
+});
   }
 });
 

@@ -24,6 +24,7 @@ export function formatListingCard(listing: ListingRow): string {
     `🏠 ${listing.L_Address}, ${listing.L_City} ${listing.L_Zip}`,
     `Price: ${formatPrice(listing.price)}`,
     `Beds: ${listing.beds} | Baths: ${listing.baths} | Sq Ft: ${listing.sqft}`,
+    `Photos: ${listing.PhotoCount ?? "Unavailable"}`,
     `Type: ${listing.type}`,
     `Pool: ${pool} | View: ${view}`,
     `Status: ${listing.status}`,
