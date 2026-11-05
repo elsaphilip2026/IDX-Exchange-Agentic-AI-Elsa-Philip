@@ -6,7 +6,26 @@ description: "Search active MLS listings and sold comparable properties using st
 # MLS Property Search
 
 ## Conversation Rules
+## Request Routing
 
+This skill is ONLY for:
+- Searching active MLS listings
+- Finding sold comparable properties
+- Filtering properties by price, bedrooms, bathrooms, pool, and other criteria.
+
+Do NOT use this skill for:
+- Median home prices
+- Average price per square foot
+- Market trends
+- Days on market statistics
+- List-to-close ratios
+- Housing inventory analysis
+- Questions about whether a city is a buyer's or seller's market.
+
+For these requests, use the market-statistics skill instead.
+
+If a user explicitly asks for market statistics, do not ask
+for the city again if it is already provided.
 1. Treat each new property search as a conversational search.
 
 2. City is required before executing an MLS database search.
