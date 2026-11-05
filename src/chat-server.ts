@@ -1,3 +1,5 @@
+import { searchListingsOffline } from "./semantic-search-offline";
+import { searchCachedListings } from "./cached-semantic-search";
 import { detectMarketCity } from "./market-city-parser";
 import express from "express";
 import path from "path";
@@ -20,6 +22,48 @@ const SESSION_MAX_AGE = 2 * 60 * 60 * 1000;
 app.use(express.json());
 app.use(express.static(path.join(process.cwd(), "public")));
 
+app.post("/api/semantic-search", async (req, res) => {
+  try {
+    const city = String(req.body?.city || "").trim();
+    const description = String(req.body?.description || "").trim();
+
+    if (!city || !description) {
+      return res.status(400).json({
+        error: "Please provide both city and description.",
+      });
+    }
+
+    const results = await searchListingsOffline(
+      city,
+      description,
+      100
+    );
+
+    return res.json({
+      route: "semantic-search-offline",
+      method: "keyword-overlap",
+      city,
+      description,
+      count: results.length,
+      disclaimer:
+        "Offline keyword matching only. These are not AI embedding similarity scores.",
+      properties: results.map((property) => ({
+        listingId: property.listingId,
+        city: property.city,
+        price: property.price,
+        score: property.score,
+        descriptionPreview:
+          property.description?.slice(0, 150) ?? "",
+      })),
+    });
+  } catch (error) {
+    console.error("Offline search error:", error);
+
+    return res.status(500).json({
+      error: "Offline property search failed.",
+    });
+  }
+});
 app.post("/api/chat", async (req, res) => {
   try {
     const message = String(req.body?.message || "").trim();
@@ -60,7 +104,7 @@ app.post("/api/chat", async (req, res) => {
     }
     // Route market-statistics questions before property-search parsing.
 const isMarketQuestion =
-  /\b(market|median|average price|price per square foot|days on market|list.to.close|price trend|inventory|seller.s market|buyer.s market)\b/i.test(message);
+  /\b(market|median|average(?:\s+sold)?(?:\s+home)?\s+price|price per square foot|days on market|list.to.close|price trend|inventory|seller.s market|buyer.s market)\b/i.test(message);
 
 if (isMarketQuestion) {
   const city = await detectMarketCity(message);
@@ -94,7 +138,8 @@ if (isMarketQuestion) {
       maximumFractionDigits: 0,
     })}`;
 
-  const reply = [
+
+const reply = [
     `📊 ${city} Housing Market Report`,
     "",
     `🏡 Median sold price: ${money(summary.median_close_price)}`,
@@ -122,6 +167,80 @@ if (isMarketQuestion) {
     reply,
     route: "market-statistics",
   });
+}
+// Week 6: Route descriptive property searches to offline matching.
+const isDescriptiveSearch =
+  /\b(mountain views?|ocean views?|backyard|garden|modern|charming|spacious|renovated|luxury)\b/i.test(message);
+
+if (isDescriptiveSearch) {
+  const city = await detectMarketCity(message);
+
+  if (city) {
+    const properties =
+     city.toLowerCase() === "irvine"
+      ? await searchCachedListings(message)
+      : await searchListingsOffline(city, message, 100);
+
+    if (properties.length === 0) {
+      return res.json({
+        sessionId,
+        reply:
+          `🏡 No properties matched your search in ${city}.\n\n` +
+          `Try increasing your budget or reducing the minimum bedroom requirement.\n\n` +
+          `ℹ️ Results are based on a limited set of properties, not the entire MLS database.`,
+        route: city.toLowerCase() === "irvine"
+          ? "semantic-search-ai"
+          : "semantic-search-offline",
+        count: 0,
+        properties: [],
+      });
+    }
+
+    const reply = [
+      `🏡 Top descriptive matches in ${city}:`,
+      "",
+      ...properties.map(
+        (property: { listingId: string; price: number | string | null; score: number }, index: number) =>
+          `${index + 1}. Listing ${property.listingId} — $${Number(property.price).toLocaleString("en-US")}\n` +
+          `Match score: ${(property.score * 100).toFixed(0)}%`
+      ),
+      "",
+      city.toLowerCase() === "irvine"
+        ? "🤖 Results ranked using genuine AI embeddings from 100 cached Irvine properties."
+        : "ℹ️ Results use offline keyword matching, not AI embeddings.",
+    ].join("\n");
+
+    return res.json({
+  sessionId,
+  reply,
+  route: city.toLowerCase() === "irvine"
+   ? "semantic-search-ai"
+   : "semantic-search-offline",
+  method: city.toLowerCase() === "irvine"
+   ? "local-ai-embeddings"
+   : "keyword-overlap",
+  count: properties.length,
+  properties: properties.map((property: {
+    listingId: string;
+    address: string | null;
+    city: string;
+    price: number | string | null;
+    bedrooms: number | string | null;
+    bathrooms: number | string | null;
+    sqft: number | string | null;
+    score: number;
+  }) => ({
+    listingId: property.listingId,
+    address: property.address,
+    city: property.city,
+    price: property.price,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    sqft: property.sqft,
+    score: property.score,
+  })),
+});
+  }
 }
     // Parse and retain criteria through the Week 4 conversation logic.
     const { session, listings } = await searchFromConversation(
@@ -153,14 +272,12 @@ if (isMarketQuestion) {
     const reply = properties.length
   ? [
       `I found ${properties.length} matching active properties.`,
-      ...properties.map((property) =>
-        [
-          `🏠 ${property.address}, ${property.city}`,
-          `$${Number(property.price).toLocaleString("en-US")}`,
-          `${property.bedrooms} beds | ${property.bathrooms} baths | ${property.sqft} sqft`,
-          `📸 Photos: ${property.photoCount ?? "Unavailable"}`,
-        ].join("\n")
-      ),
+      ...properties.map((property) => [
+        `🏠 ${property.address}, ${property.city}`,
+        `$${Number(property.price).toLocaleString("en-US")}`,
+        `${property.bedrooms} beds | ${property.bathrooms} baths | ${property.sqft} sqft`,
+        `📸 Photos: ${property.photoCount ?? "Unavailable"}`,
+      ].join("\n")),
     ].join("\n\n")
   : session.page > 1
       ? "You've reached the end of the results. There are no more matching properties. Would you like to adjust your filters?"

@@ -36,3 +36,17 @@ Thumbs.db
 *.log
 logs/
 
+
+# Generated local AI embeddings and MLS data
+data/
+
+# OpenClaw workspace and personal configuration
+AGENTS.md
+DREAMS.md
+IDENTITY.md
+SOUL.md
+USER.md
+memory/
+
+# Local development backups
+src/chat-server.week6-backup.ts
