@@ -50,3 +50,4 @@ memory/
 
 # Local development backups
 src/chat-server.week6-backup.ts
+src/chat-server.week7-backup.ts

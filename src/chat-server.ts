@@ -1,3 +1,4 @@
+import { recommendSimilarListings } from "./recommendation-engine";
 import { searchListingsOffline } from "./semantic-search-offline";
 import { searchCachedListings } from "./cached-semantic-search";
 import { detectMarketCity } from "./market-city-parser";
@@ -102,6 +103,69 @@ app.post("/api/chat", async (req, res) => {
         needsCity: true,
       });
     }
+
+    // Week 7: Recommend properties similar to a selected listing.
+    const recommendationRequest =
+      /\b(?:similar|recommend|recommendations|like this|comparable)\b/i.test(message);
+
+    const listingMatch = message.match(/\b(?:listing\s*(?:id|#)?\s*|#)(\d{8,12})\b/i);
+
+    if (recommendationRequest && listingMatch) {
+      const listingId = listingMatch[1];
+
+      try {
+        const result = await recommendSimilarListings(listingId, 5);
+
+        const money = (value: number) =>
+          "$" + value.toLocaleString("en-US", {
+            maximumFractionDigits: 0,
+          });
+
+        const reply = [
+          `🏡 Top 5 properties similar to listing ${listingId}`,
+          "",
+          ...result.recommendations.flatMap((property, index) => [
+            `${index + 1}. ${property.address}, ${property.city}`,
+            `   Price: ${money(property.price)}`,
+            `   Bedrooms: ${property.bedrooms} | Sqft: ${property.sqft}`,
+            `   Similarity score: ${property.score}/100`,
+            `   Comparable-sales estimate: ${
+              property.comps.estimatedCompPrice === null
+                ? "Unavailable"
+                : money(property.comps.estimatedCompPrice)
+            }`,
+            `   Price difference: ${
+              property.comps.deltaPct === null
+                ? "Unavailable"
+                : property.comps.deltaPct + "%"
+            }`,
+            `   ${property.comps.assessment}`,
+            "",
+          ]),
+          "Scores are relative similarity measures, not probabilities.",
+          "Comparable-sales estimates are preliminary and are not appraisals.",
+        ].join("\n");
+
+        return res.json({
+          sessionId,
+          route: "recommendation-engine",
+          reply,
+          count: result.recommendations.length,
+          recommendations: result.recommendations,
+        });
+      } catch (error) {
+        console.error("Recommendation error:", error);
+
+        return res.json({
+          sessionId,
+          route: "recommendation-engine",
+          reply:
+            "I couldn't generate recommendations for that listing. " +
+            "Please select an active listing from the Irvine embedding cache.",
+        });
+      }
+    }
+
     // Route market-statistics questions before property-search parsing.
 const isMarketQuestion =
   /\b(market|median|average(?:\s+sold)?(?:\s+home)?\s+price|price per square foot|days on market|list.to.close|price trend|inventory|seller.s market|buyer.s market)\b/i.test(message);
