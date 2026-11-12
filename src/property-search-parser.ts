@@ -2,6 +2,8 @@ export interface PropertyFilters {
   city?: string;
   minPrice?: number;
   maxPrice?: number;
+  maxDaysOnMarket?: number;
+  maxCumulativeDaysOnMarket?: number;
   bedrooms?: number;
   bathrooms?: number;
   minSqft?: number;
@@ -10,6 +12,7 @@ export interface PropertyFilters {
   pool?: string;
   hasView?: string;
   maxHoa?: number;
+  hoaFrequency?: string;
 }
 
 export function parsePropertySearch(query: string): PropertyFilters {
@@ -71,6 +74,16 @@ export function parsePropertySearch(query: string): PropertyFilters {
       hoaMatch[1].replace(/,/g, "")
     );
   }
+  const hoaFrequencyMatch = text.match(
+  /\b(?:hoa|association fee)\b[^.!?]*?\b(?:per month|monthly|\/month|per year|annually|annual|yearly|\/year)\b/i
+);
+
+if (hoaFrequencyMatch) {
+  const frequencyText = hoaFrequencyMatch[0].toLowerCase();
+
+  filters.hoaFrequency =
+    /month/.test(frequencyText) ? "Monthly" : "Annually";
+}
 
   // Remove HOA expression before parsing property price.
   // This prevents "HOA under $500" from becoming maxPrice.
@@ -78,11 +91,36 @@ export function parsePropertySearch(query: string): PropertyFilters {
     /\b(?:hoa|association fee)\s*(?:(?:under|below|max(?:imum)?(?: of)?)\s*)?\$?[\d,.]+\b/gi,
     ""
   );
+  // Cumulative Days on Market (CDOM)
+  const cdomMatch = text.match(
+    /\b(?:under|below|less than|fewer than)\s*(\d+)\s*(?:cdom|cumulative days on market)\b/i
+  );
 
+  if (cdomMatch) {
+    filters.maxCumulativeDaysOnMarket = Number(cdomMatch[1]) - 1;
+  }
+  // Days on Market (DOM)
+  const domMatch = text.match(
+    /\b(?:under|below|less than|fewer than|max(?:imum)?(?: of)?)\s*(\d+)\s*(?:days?\s+on\s+(?:the\s+)?market|dom)\b/i
+  );
+
+  if (domMatch) {
+    filters.maxDaysOnMarket = Number(domMatch[1]) - 1;
+  }
+
+  // Remove DOM condition before parsing property price.
+  const textWithoutCdom = textWithoutHoa.replace(
+  /\b(?:under|below|less than|fewer than)\s*\d+\s*(?:cdom|cumulative days on market)\b/gi,
+  ""
+);
+  const textWithoutDom = textWithoutCdom.replace(
+    /\b(?:under|below|less than|fewer than|max(?:imum)?(?: of)?)\s*\d+\s*(?:days?\s+on\s+(?:the\s+)?market|dom)\b/gi,
+    ""
+  );
   // --------------------------------------------------
   // Maximum property price
   // --------------------------------------------------
-  const maxPriceMatch = textWithoutHoa.match(
+  const maxPriceMatch = textWithoutDom.match(
   /\b(?:under|below|less than|max(?:imum)?(?: of)?)\s*\$?([\d,.]+)\s*(k|m|thousand|million)?\b/i
   );
 

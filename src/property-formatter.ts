@@ -25,6 +25,7 @@ export function formatListingCard(listing: ListingRow): string {
     `Price: ${formatPrice(listing.price)}`,
     `Beds: ${listing.beds} | Baths: ${listing.baths} | Sq Ft: ${listing.sqft}`,
     `Photos: ${listing.PhotoCount ?? "Unavailable"}`,
+    `⏳ Days on Market (DOM): ${listing.DaysOnMarket ?? "Unavailable"}`,
     `Type: ${listing.type}`,
     `Pool: ${pool} | View: ${view}`,
     `Status: ${listing.status}`,

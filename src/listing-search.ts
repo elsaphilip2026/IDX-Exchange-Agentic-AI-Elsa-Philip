@@ -7,6 +7,10 @@ export interface ListingRow {
   L_Address: string;
   L_City: string;
   L_Zip: string;
+  DaysOnMarket: number | null;
+  CumulativeDaysOnMarket: number | null;
+  AssociationFee: number | null;
+  AssociationFeeFrequency: string | null;
   price: number;
   beds: number;
   baths: number;
@@ -37,6 +41,10 @@ export async function searchActiveListings(
       LM_Dec_3 AS baths,
       LM_Int2_3 AS sqft,
       PhotoCount,
+      DaysOnMarket,
+      CumulativeDaysOnMarket,
+      AssociationFee,
+      AssociationFeeFrequency,
       L_Type_ AS type,
       L_Status AS status,
       PoolPrivateYN,
@@ -61,7 +69,14 @@ export async function searchActiveListings(
     sql += " AND L_SystemPrice <= ?";
     params.push(filters.maxPrice);
   }
-
+    if (filters.maxDaysOnMarket !== undefined) {
+    sql += " AND DaysOnMarket >= 0 AND DaysOnMarket <= ?";
+    params.push(filters.maxDaysOnMarket);
+  }
+    if (filters.maxCumulativeDaysOnMarket !== undefined) {
+    sql += " AND CumulativeDaysOnMarket >= 0 AND CumulativeDaysOnMarket <= ?";
+    params.push(filters.maxCumulativeDaysOnMarket);
+  }
   if (filters.bedrooms) {
     sql += " AND L_Keyword2 >= ?";
     params.push(filters.bedrooms);
@@ -86,6 +101,10 @@ export async function searchActiveListings(
   sql += " AND AssociationFee <= ?";
   params.push(filters.maxHoa);
   
+  }
+  if (filters.hoaFrequency) {
+  sql += " AND AssociationFeeFrequency = ?";
+  params.push(filters.hoaFrequency);
   }
   if (filters.pool) {
     sql += " AND PoolPrivateYN = ?";

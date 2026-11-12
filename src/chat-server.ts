@@ -3,6 +3,7 @@ import { searchListingsOffline } from "./semantic-search-offline";
 import { searchCachedListings } from "./cached-semantic-search";
 import { detectMarketCity } from "./market-city-parser";
 import express from "express";
+import { realEstateGlossary } from "./real-estate-glossary";
 import path from "path";
 import { randomUUID } from "crypto";
 import { searchFromConversation } from "./conversational-search";
@@ -165,16 +166,39 @@ app.post("/api/chat", async (req, res) => {
         });
       }
     }
+    // Answer real-estate terminology questions.
+    const glossaryQuestion = message.match(
+      /^\s*(?:what\s+(?:is|are|does)\s+|define\s+|explain\s+)(.+?)\s*\??\s*$/i
+    );
 
+    if (glossaryQuestion) {
+     const term = glossaryQuestion[1]
+      .replace(/\s+mean$/i, "")
+      .trim()
+      .toUpperCase();
+
+     const definition = realEstateGlossary[term];
+
+    if (definition) {
+      return res.json({
+        sessionId,
+        route: "real-estate-glossary",
+        reply: definition,
+    });
+  }
+}
     // Route market-statistics questions before property-search parsing.
+const isPropertySearchRequest =
+  /\b(find|show|search|list|looking for)\b/i.test(message) &&
+  /\b(home|homes|house|houses|property|properties|listing|listings)\b/i.test(message);
+
 const isMarketQuestion =
+  !isPropertySearchRequest &&
   /\b(market|median|average(?:\s+sold)?(?:\s+home)?\s+price|price per square foot|days on market|list.to.close|price trend|inventory|seller.s market|buyer.s market)\b/i.test(message);
-
-if (isMarketQuestion) {
-  const city = await detectMarketCity(message);
-
-  if (!city) {
-    return res.json({
+  if (isMarketQuestion) {
+    const city = await detectMarketCity(message);  
+    if (!city) {
+      return res.json({
       sessionId,
       reply: "Which California city would you like market statistics for?",
       route: "market-statistics",
@@ -331,6 +355,10 @@ if (isDescriptiveSearch) {
       bathrooms: listing.baths,
       sqft: listing.sqft,
       photoCount: listing.PhotoCount,
+      daysOnMarket: listing.DaysOnMarket,
+      cumulativeDaysOnMarket: listing.CumulativeDaysOnMarket,
+      hoaFee: listing.AssociationFee,
+      hoaFrequency: listing.AssociationFeeFrequency,
     }));
 
     const reply = properties.length
@@ -341,6 +369,9 @@ if (isDescriptiveSearch) {
         `$${Number(property.price).toLocaleString("en-US")}`,
         `${property.bedrooms} beds | ${property.bathrooms} baths | ${property.sqft} sqft`,
         `📸 Photos: ${property.photoCount ?? "Unavailable"}`,
+        `⏳ Days on Market (DOM): ${property.daysOnMarket ?? "Unavailable"}`,
+        `📅 Cumulative Days on Market (CDOM): ${property.cumulativeDaysOnMarket ?? "Unavailable"}`,
+        `🏘️ HOA Fee: ${property.hoaFee == null ? "Unavailable" : "$" + Number(property.hoaFee).toLocaleString("en-US")} ${property.hoaFrequency ?? ""}`,
       ].join("\n")),
     ].join("\n\n")
   : session.page > 1
