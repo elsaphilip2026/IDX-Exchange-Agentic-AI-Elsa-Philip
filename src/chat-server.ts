@@ -7,7 +7,8 @@ import { realEstateGlossary } from "./real-estate-glossary";
 import path from "path";
 import { randomUUID } from "crypto";
 import { searchFromConversation } from "./conversational-search";
-import { clearSession } from "./session-memory";
+import { clearSession, getSession } from "./session-memory";
+import { compareProperties } from "./property-comparison";
 import {
   getCityMarketSummary,
   getMonthlyPriceTrend,
@@ -328,8 +329,34 @@ if (isDescriptiveSearch) {
     score: property.score,
   })),
 });
-  }
 }
+}
+
+
+    // Week 8: Compare properties from the latest search results.
+    const comparisonMatch = message.match(
+      /\bcompare\s+(?:property|properties|listing|listings)?\s*(\d+)\s+(?:and|with|vs\.?|versus)\s+(?:property|properties|listing|listings)?\s*(\d+)\b/i
+    );
+
+    if (comparisonMatch) {
+      const firstNumber = Number(comparisonMatch[1]);
+      const secondNumber = Number(comparisonMatch[2]);
+
+      const previousListings = getSession(sessionId).lastResults ?? [];
+
+      const reply = compareProperties(
+        previousListings,
+        firstNumber,
+        secondNumber
+      );
+
+      return res.json({
+        sessionId,
+        route: "property-comparison",
+        reply,
+      });
+    }
+
     // Parse and retain criteria through the Week 4 conversation logic.
     const { session, listings } = await searchFromConversation(
       sessionId,
