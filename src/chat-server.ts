@@ -1,3 +1,4 @@
+import { generateRagAnswer } from "./rag-answer-generator.js";
 import { recommendSimilarListings } from "./recommendation-engine";
 import { searchListingsOffline } from "./semantic-search-offline";
 import { searchCachedListings } from "./cached-semantic-search";
@@ -188,6 +189,31 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 }
+    // Week 8: Route explicit documentation questions to RAG.
+    const isRagQuestion =
+      /\b(?:california_sold|rets_property|trestle|metadata|schema|documentation|primer)\b/i.test(message) &&
+      /\b(?:what|which|list|show|explain|define|describe|how|columns?|fields?|table|document)\b/i.test(message);
+
+    if (isRagQuestion) {
+      try {
+        const reply = await generateRagAnswer(message);
+
+        return res.json({
+          sessionId,
+          route: "rag-documentation",
+          reply,
+        });
+      } catch (error) {
+        console.error("RAG answer error:", error);
+
+        return res.status(500).json({
+          sessionId,
+          route: "rag-documentation",
+          error: "I couldn't retrieve the documentation answer.",
+        });
+      }
+    }
+
     // Route market-statistics questions before property-search parsing.
 const isPropertySearchRequest =
   /\b(find|show|search|list|looking for)\b/i.test(message) &&
