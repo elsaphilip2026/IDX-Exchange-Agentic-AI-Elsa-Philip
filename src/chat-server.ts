@@ -190,10 +190,17 @@ app.post("/api/chat", async (req, res) => {
   }
 }
     // Week 8: Route explicit documentation questions to RAG.
-    const isRagQuestion =
-      /\b(?:california_sold|rets_property|trestle|metadata|schema|documentation|primer)\b/i.test(message) &&
-      /\b(?:what|which|list|show|explain|define|describe|how|columns?|fields?|table|document)\b/i.test(message);
+    const isDocumentationQuestion =
+     /\b(?:california_sold|rets_property|trestle|metadata|schema|documentation|primer)\b/i.test(message) &&
+     /\b(?:what|which|list|show|explain|define|describe|how|columns?|fields?|table|document)\b/i.test(message);
 
+    const isMortgageRateQuestion =
+     /\b(?:mortgage|home loan)\b/i.test(message) &&
+     /\b(?:interest|rates?|apr)\b/i.test(message) &&
+     /\b(?:what|which|show|list|exact|available|every|all)\b/i.test(message);
+
+    const isRagQuestion =
+     isDocumentationQuestion || isMortgageRateQuestion;
     if (isRagQuestion) {
       try {
         const reply = await generateRagAnswer(message);
