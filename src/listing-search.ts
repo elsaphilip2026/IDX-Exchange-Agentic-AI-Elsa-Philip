@@ -20,12 +20,14 @@ export interface ListingRow {
   status: string;
   PoolPrivateYN: string;
   ViewYN: string;
+  L_Remarks?: string | null;
 }
 
 export async function searchActiveListings(
   filters: PropertyFilters,
   page = 1,
-  limit = 10
+  limit = 10,
+  includeRemarks = false
 ): Promise<ListingRow[]> {
   const offset = (page - 1) * limit;
 
@@ -48,7 +50,7 @@ export async function searchActiveListings(
       L_Type_ AS type,
       L_Status AS status,
       PoolPrivateYN,
-      ViewYN
+      ViewYN${includeRemarks ? ", L_Remarks" : ""}
     FROM rets_property
     WHERE L_Status = "Active"
   `;
@@ -116,7 +118,7 @@ export async function searchActiveListings(
     params.push("1");
   }
 
-  sql += " ORDER BY L_SystemPrice ASC LIMIT ? OFFSET ?";
+  sql += " ORDER BY L_SystemPrice ASC, L_ListingID ASC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
   return query<ListingRow>(sql, params);

@@ -1,5 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { query } from "./mysql";
+import { getLocalEmbedding } from "./local-embeddings";
+import {
+  buildListingText,
+  type EmbeddingListing,
+} from "./listing-embeddings";
+import { searchActiveListings } from "./listing-search";
+import type { PropertyFilters } from "./property-search-parser";
 import {
   calculateRecommendationScore,
   type RecommendationProperty,
@@ -8,117 +15,192 @@ import { validateRecommendationPrice } from "./recommendation-comps";
 
 interface CachedListing {
   L_ListingID: string;
+  listingText: string;
   embedding: number[];
 }
 
-interface ActiveListing {
-  L_ListingID: string;
-  L_Address: string;
-  L_City: string;
-  L_SystemPrice: number;
-  L_Keyword2: number;
-  LM_Int2_3: number;
-  L_Status: string;
+const runtimeCache = new Map<string, number[]>();
+
+async function loadCachedEmbeddings() {
+  try {
+    const file = await readFile(
+      "data/irvine-embeddings.json",
+      "utf8"
+    );
+
+    const cached: CachedListing[] = JSON.parse(file);
+
+    return new Map(
+      cached.map(listing => [
+        String(listing.L_ListingID),
+        listing,
+      ])
+    );
+  } catch {
+    return new Map<string, CachedListing>();
+  }
+}
+
+async function getPropertyEmbedding(
+  listing: EmbeddingListing,
+  cached: Map<string, CachedListing>
+): Promise<number[]> {
+  const text = buildListingText(listing);
+  const id = String(listing.L_ListingID);
+  const existing = cached.get(id);
+
+  if (
+    existing &&
+    existing.listingText === text &&
+    Array.isArray(existing.embedding) &&
+    existing.embedding.length === 384 &&
+    existing.embedding.every(Number.isFinite)
+  ) {
+    return existing.embedding;
+  }
+
+  const key = `${id}:${text}`;
+
+  const runtimeEmbedding = runtimeCache.get(key);
+
+  if (runtimeEmbedding) {
+    return runtimeEmbedding;
+  }
+
+  const embedding = await getLocalEmbedding(text);
+
+  if (runtimeCache.size >= 1000) {
+    const oldest = runtimeCache.keys().next().value;
+    if (oldest !== undefined) {
+      runtimeCache.delete(oldest);
+    }
+  }
+
+  runtimeCache.set(key, embedding);
+
+  return embedding;
+}
+
+function toProperty(
+  listing: EmbeddingListing
+): RecommendationProperty {
+  return {
+    listingId: String(listing.L_ListingID),
+    price: Number(listing.L_SystemPrice),
+    beds: Number(listing.L_Keyword2),
+    city: listing.L_City,
+    sqft: Number(listing.LM_Int2_3),
+  };
 }
 
 export async function recommendSimilarListings(
   targetListingId: string,
-  limit = 5
+  limit = 5,
+  preferences: PropertyFilters = {}
 ) {
-  const file = await readFile(
-    "data/irvine-embeddings.json",
-    "utf8"
+  const targets = await query<EmbeddingListing>(
+    `SELECT
+       L_ListingID,
+       L_Address,
+       L_City,
+       L_Type_,
+       L_Keyword2,
+       LM_Dec_3,
+       LM_Int2_3,
+       L_SystemPrice,
+       L_Remarks
+     FROM rets_property
+     WHERE L_ListingID = ?
+       AND L_Status = 'Active'
+     LIMIT 1`,
+    [targetListingId]
   );
 
-  const cached: CachedListing[] = JSON.parse(file);
+  const target = targets[0];
 
-  const targetCache = cached.find(
-    (listing) =>
-      String(listing.L_ListingID) === String(targetListingId)
-  );
-
-  if (!targetCache) {
+  if (!target) {
     throw new Error(
-      "Selected listing is not in the Irvine embedding cache."
+      "Selected listing is not currently active."
     );
   }
 
-  const ids = [...new Set(
-    cached.map((listing) => String(listing.L_ListingID))
-  )];
+  const filters: PropertyFilters = {
+    ...preferences,
+    city: preferences.city || target.L_City,
+  };
 
-  const placeholders = ids.map(() => "?").join(",");
-
-  const active = await query<ActiveListing>(
-    `SELECT
-       L_ListingID, L_Address, L_City,
-       L_SystemPrice, L_Keyword2, LM_Int2_3, L_Status
-     FROM rets_property
-     WHERE L_ListingID IN (${placeholders})
-       AND L_Status = 'Active'`,
-    ids
+  const rows = await searchActiveListings(
+    filters,
+    1,
+    100,
+    true
   );
 
-  const activeById = new Map(
-    active.map((listing) => [String(listing.L_ListingID), listing])
-  );
+  const candidates: EmbeddingListing[] = rows
+    .filter(row =>
+      String(row.L_ListingID) !== String(targetListingId)
+    )
+    .map(row => ({
+      L_ListingID: String(row.L_ListingID),
+      L_Address: row.L_Address,
+      L_City: row.L_City,
+      L_Type_: row.type,
+      L_Keyword2: row.beds,
+      LM_Dec_3: row.baths,
+      LM_Int2_3: row.sqft,
+      L_SystemPrice: row.price,
+      L_Remarks: row.L_Remarks ?? null,
+    }));
 
-  const target = activeById.get(String(targetListingId));
-
-  if (!target) {
-    throw new Error("Selected listing is not currently active.");
-  }
-
-  function toProperty(listing: ActiveListing): RecommendationProperty {
+  if (candidates.length === 0) {
     return {
-      listingId: String(listing.L_ListingID),
-      price: Number(listing.L_SystemPrice),
-      beds: Number(listing.L_Keyword2),
-      city: listing.L_City,
-      sqft: Number(listing.LM_Int2_3),
+      targetListingId: String(targetListingId),
+      candidatePool: 0,
+      recommendations: [],
     };
   }
 
-  const scored = cached
-    .filter((listing) =>
-      String(listing.L_ListingID) !== String(targetListingId)
-    )
-    .map((listing) => {
-      const current = activeById.get(String(listing.L_ListingID));
+  const cached = await loadCachedEmbeddings();
 
-      if (
-        !current ||
-        !Array.isArray(listing.embedding) ||
-        listing.embedding.length !== targetCache.embedding.length
-      ) {
-        return null;
-      }
+  const targetEmbedding = await getPropertyEmbedding(
+    target,
+    cached
+  );
 
-      const score = calculateRecommendationScore(
-        toProperty(target),
-        toProperty(current),
-        targetCache.embedding,
-        listing.embedding
-      );
+  const scored = [];
 
-      return {
-        listingId: String(current.L_ListingID),
-        address: current.L_Address,
-        city: current.L_City,
-        price: Number(current.L_SystemPrice),
-        bedrooms: Number(current.L_Keyword2),
-        sqft: Number(current.LM_Int2_3),
-        score,
-      };
-    })
-    .filter((listing): listing is NonNullable<typeof listing> =>
-      listing !== null
-    )
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  for (const candidate of candidates) {
+    const embedding = await getPropertyEmbedding(
+      candidate,
+      cached
+    );
+
+    const score = calculateRecommendationScore(
+      toProperty(target),
+      toProperty(candidate),
+      targetEmbedding,
+      embedding
+    );
+
+    scored.push({
+      listingId: String(candidate.L_ListingID),
+      address: candidate.L_Address,
+      city: candidate.L_City,
+      price: Number(candidate.L_SystemPrice),
+      bedrooms: Number(candidate.L_Keyword2),
+      sqft: Number(candidate.LM_Int2_3),
+      score,
+    });
+  }
+
+  scored.sort(
+    (a, b) =>
+      b.score - a.score ||
+      a.listingId.localeCompare(b.listingId)
+  );
 
   const recommendations = await Promise.all(
-    scored.map(async (listing) => ({
+    scored.slice(0, limit).map(async listing => ({
       ...listing,
       comps: await validateRecommendationPrice(
         listing.city,
@@ -130,7 +212,7 @@ export async function recommendSimilarListings(
 
   return {
     targetListingId: String(targetListingId),
-    candidatePool: active.length - 1,
+    candidatePool: candidates.length,
     recommendations,
   };
 }

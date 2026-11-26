@@ -2,6 +2,7 @@ import type { PropertyFilters } from "./property-search-parser";
 
 export interface UserSession extends PropertyFilters {
   lastResults?: any[];
+  semanticDescription?: string;
   conversationStep: number;
   page: number;
 }

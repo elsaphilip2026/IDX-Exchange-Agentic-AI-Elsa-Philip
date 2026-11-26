@@ -23,7 +23,7 @@ export function parsePropertySearch(query: string): PropertyFilters {
   // City
   // --------------------------------------------------
   const cityMatch = query.match(
-    /\bin\s+([A-Za-z\s]+?)(?=\s+(?:under|below|over|above|with|at|for|having)\b|$)/i
+    /\bin\s+([A-Za-z][A-Za-z\s\'-]*?)(?=\s+(?:under|below|over|above|with|at|for|having|and\s+(?:tell|show|explain|give|analyze|compare|what|whether))\b|[.!?,;]|$)/i
   );
 
   if (cityMatch) {

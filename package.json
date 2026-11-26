@@ -8,7 +8,9 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsx --test tests/*.test.ts",
+    "dev": "tsx src/chat-server.ts",
+    "start": "tsx src/chat-server.ts"
   },
   "repository": {
     "type": "git",

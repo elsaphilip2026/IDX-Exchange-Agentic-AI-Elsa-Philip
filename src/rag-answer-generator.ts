@@ -21,7 +21,7 @@ export async function generateRagAnswer(
 
   const wantsFullSchema =
     /california_sold/i.test(question) &&
-    /(?:all|every|complete|full|list|what|which|available)/i.test(question) &&
+    /(?:all|every|complete|full|list|what|which|available|explain|describe|overview|show)/i.test(question) &&
     /(?:columns?|fields?|schema)/i.test(question);
 
   const fullSchema = wantsFullSchema
@@ -147,7 +147,7 @@ ${question}
     [
       "agent",
       "--agent",
-      "idx-exchange-ai-elsa",
+      "idx-rag-worker",
       "--message",
       prompt,
       "--json",
